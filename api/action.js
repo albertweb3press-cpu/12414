@@ -9,12 +9,12 @@ const CHAT_ID = process.env.CHAT_ID || '-1004328186753';
 
 function sendTelegram(text) {
   if (!CHAT_ID) return Promise.resolve();
-  const payload = JSON.stringify({ chat_id: CHAT_ID, text, disable_web_page_preview: true });
+  const payload = JSON.stringify({ chat_id: CHAT_ID, text: text, disable_web_page_preview: true });
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
         hostname: 'api.telegram.org',
-        path: /bot/sendMessage,
+        path: '/bot' + BOT_TOKEN + '/sendMessage',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
       },
@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch { body = {}; }
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
   if (!body) body = {};
 
@@ -58,17 +58,17 @@ module.exports = async (req, res) => {
 
   let location = body.location || 'unknown';
   if (city && country) {
-    location = ${city}, ;
+    location = city + ', ' + country;
   } else if (country) {
     location = country;
   } else if (ip && ip !== 'unknown' && !ip.startsWith('127.') && !ip.startsWith('192.168')) {
     try {
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 3000);
-      const r = await fetch(http://ip-api.com/json/?fields=city,country, { signal: controller.signal });
+      const r = await fetch('http://ip-api.com/json/' + ip + '?fields=city,country', { signal: controller.signal });
       const j = await r.json();
-      if (j && j.country) location = ${j.city ? j.city + ', ' : ''};
-    } catch {}
+      if (j && j.country) location = (j.city ? j.city + ', ' : '') + j.country;
+    } catch (e) {}
   }
 
   const now = new Date();
@@ -77,15 +77,15 @@ module.exports = async (req, res) => {
   const timeStr = body.time || now.toLocaleTimeString('en-GB', { hour12: false, timeZone: body.tz || 'UTC' });
 
   const actionName = (body.action || 'CLICKED SIGN UP').toUpperCase();
-  const actionTitle = actionName.startsWith('👆') ? actionName : 👆 ;
+  const actionTitle = actionName.startsWith('👆') ? actionName : ('👆 ' + actionName);
 
   const text =
-    ${actionTitle}\n +
-    -------------------\n +
-    🌍 IP: \n +
-    🏳️ Location: \n +
-    🗣 Lang: \n +
-    ⏰ Time: ;
+    actionTitle + '\n' +
+    '-------------------\n' +
+    '🌍 IP: ' + ip + '\n' +
+    '🏳️ Location: ' + location + '\n' +
+    '🗣 Lang: ' + cleanLang + '\n' +
+    '⏰ Time: ' + timeStr;
 
   try {
     await sendTelegram(text);

